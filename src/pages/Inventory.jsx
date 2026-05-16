@@ -228,7 +228,7 @@ export const Inventory = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">
                         {product.stock_level} <span className="text-xs text-slate-400 font-normal ml-1">{product.unit}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${product.price.toLocaleString()}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{product.price.toLocaleString()} so'm</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${statusObj.color}`}>
                           {statusObj.label}
@@ -301,7 +301,7 @@ export const Inventory = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Narxi ($)</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Narxi (so'm)</label>
                   <input required type="number" name="price" value={formData.price} onChange={handleChange} min="0" step="0.01" className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"/>
                 </div>
               </div>

@@ -123,7 +123,7 @@ export const Home = () => {
           <div className="flex justify-between items-start mb-4 relative z-10">
             <div>
               <p className="text-slate-400 text-sm font-medium mb-1">Umumiy Daromad</p>
-              <h3 className="text-3xl font-bold">${stats.totalRevenue.toLocaleString()}</h3>
+              <h3 className="text-3xl font-bold">{stats.totalRevenue.toLocaleString()} so'm</h3>
             </div>
             <div className="p-2 bg-slate-800 rounded-lg border border-slate-700">
               <DollarSign className="w-5 h-5 text-emerald-400" />
@@ -138,7 +138,7 @@ export const Home = () => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-slate-500 text-sm font-medium mb-1">Sotuvlar Soni</p>
-              <h3 className="text-3xl font-bold text-slate-800">{stats.totalSales}</h3>
+              <h3 className="text-3xl font-bold text-slate-800">{stats.totalSales} ta</h3>
             </div>
             <div className="p-2 bg-blue-50 rounded-lg">
               <ShoppingCart className="w-5 h-5 text-blue-600" />
@@ -150,7 +150,7 @@ export const Home = () => {
           <div className="flex justify-between items-start mb-4">
             <div>
               <p className="text-slate-500 text-sm font-medium mb-1">Ombordagi Turlar</p>
-              <h3 className="text-3xl font-bold text-slate-800">{stats.inventoryItems}</h3>
+              <h3 className="text-3xl font-bold text-slate-800">{stats.inventoryItems} ta</h3>
             </div>
             <div className="p-2 bg-amber-50 rounded-lg">
               <Package className="w-5 h-5 text-amber-600" />
@@ -163,7 +163,7 @@ export const Home = () => {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-slate-500 text-sm font-medium mb-1">Xodimlar Soni</p>
-                <h3 className="text-3xl font-bold text-slate-800">{stats.employeesCount}</h3>
+                <h3 className="text-3xl font-bold text-slate-800">{stats.employeesCount} kishi</h3>
               </div>
               <div className="p-2 bg-purple-50 rounded-lg">
                 <Users className="w-5 h-5 text-purple-600" />

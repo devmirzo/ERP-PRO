@@ -207,12 +207,12 @@ export const Employee = () => {
 
               <div className="px-6 py-4 border-t border-slate-100 bg-emerald-50/30">
                 <div className="flex justify-between text-xs text-slate-500 mb-1">
-                  <span>Asosiy Maosh: ${emp.base_salary}</span>
-                  <span className="text-emerald-600 font-semibold">+ ${emp.commission} (Bonus)</span>
+                  <span>Asosiy Maosh: {emp.base_salary} so'm</span>
+                  <span className="text-emerald-600 font-semibold">+ {emp.commission} (Bonus)</span>
                 </div>
                 <div className="flex justify-between items-center text-sm font-bold">
                   <span className="text-slate-700">Jami Maosh:</span>
-                  <span className="text-lg text-emerald-600">${emp.total_salary.toLocaleString()}</span>
+                  <span className="text-lg text-emerald-600">{emp.total_salary.toLocaleString()} so'm</span>
                 </div>
               </div>
             </div>

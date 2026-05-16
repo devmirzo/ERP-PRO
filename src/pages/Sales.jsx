@@ -171,7 +171,7 @@ export const Sales = () => {
             <h3 className="text-sm font-medium text-blue-100">Bugungi Tushum</h3>
           </div>
           <div className="flex items-end gap-3 relative z-10">
-            <p className="text-3xl font-bold">${metrics.todayRevenue.toLocaleString()}</p>
+            <p className="text-3xl font-bold">{metrics.todayRevenue.toLocaleString()} so'm</p>
             <span className="text-sm font-medium text-emerald-300 flex items-center mb-1"><TrendingUp className="w-4 h-4 mr-1"/>{metrics.todayOrders} ta xarid</span>
           </div>
         </div>
@@ -181,7 +181,7 @@ export const Sales = () => {
             <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg"><ShoppingCart className="w-5 h-5"/></div>
             <h3 className="text-sm font-medium text-slate-500">Jami Sotuvlar Summasi</h3>
           </div>
-          <p className="text-2xl font-bold text-slate-800">${metrics.totalRevenue.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-slate-800">{metrics.totalRevenue.toLocaleString()} so'm</p>
         </div>
 
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
@@ -233,12 +233,12 @@ export const Sales = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-slate-800">{sale.inventory?.name || 'Noma\'lum'}</div>
-                      <div className="text-xs text-slate-500">{sale.quantity} dona x ${sale.inventory?.price}</div>
+                      <div className="text-xs text-slate-500">{sale.quantity} dona x {sale.inventory?.price} so'm</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{sale.payment_method}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{sale.employees?.name || 'Noma\'lum'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-bold text-emerald-600 mb-1">${sale.amount.toLocaleString()}</div>
+                      <div className="text-sm font-bold text-emerald-600 mb-1">{sale.amount.toLocaleString()} so'm</div>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${getStatusColor(sale.status)}`}>
                         {sale.status}
                       </span>
