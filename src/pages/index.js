@@ -1,0 +1,9 @@
+export { Home as Home } from './Home';
+export { Inventory as Inventory } from './Inventory';
+export { Warehouse as Warehouse } from './Warehouse';
+export { Sales as Sales } from './Sales';
+export { Employee as Employee } from './Employee';
+export { Reports as Reports } from './Reports';
+export { Login as Login } from './Login';
+export { Sensors as Sensors } from './Sensors';
+export { Clients as Clients } from './Clients';
