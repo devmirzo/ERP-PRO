@@ -4,7 +4,7 @@ import { useAuth } from './context/AuthContext';
 
 // Layout va Sahifalarni import qilish
 import { Layouts } from './layouts/Layouts';
-import { Home, Inventory, Warehouse, Sales, Employee, Reports, Sensors, Clients, Login } from './pages/index';
+import { Home, Inventory, Warehouse, Sales, Employee, Reports, Sensors, Clients, Login, Profile, Settings, Messages } from './pages/index';
 
 import { Loader } from './components/Loader';
 
@@ -83,6 +83,24 @@ export default function App() {
           <Route path="sensors" element={
             <ProtectedRoute allowedRoles={['Bosh Admin', 'Meneger', 'Sotuvchi']}>
               <Sensors />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="profile" element={
+            <ProtectedRoute allowedRoles={['Bosh Admin', 'Meneger', 'Sotuvchi']}>
+              <Profile />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="settings" element={
+            <ProtectedRoute allowedRoles={['Bosh Admin', 'Meneger', 'Sotuvchi']}>
+              <Settings />
+            </ProtectedRoute>
+          } />
+          
+          <Route path="messages" element={
+            <ProtectedRoute allowedRoles={['Bosh Admin', 'Meneger', 'Sotuvchi']}>
+              <Messages />
             </ProtectedRoute>
           } />
         </Route>

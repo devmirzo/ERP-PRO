@@ -2,9 +2,62 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Package, Search, Filter, Plus, Edit, Trash2, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Loader } from '../components/Loader';
+import { useNotification } from '../context/NotificationContext';
+
+// Mahsulotning kategoriyasiga qarab hududini (zonasini) aniqlash
+const getProductZone = (product) => {
+  if (!product) return 'A-Zona ("Quruq meva 1-sort")';
+  switch (product.category) {
+    case 'Quruq meva 1-sort': return 'A-Zona ("Quruq meva 1-sort")';
+    case 'Quruq meva 2-sort':
+    case 'Quruq meva 3-sort': return 'B-Zona ("Quruq meva 2-sort")';
+    case 'Don don': return 'C-Zona ("Don don")';
+    case 'Ho\'l meva 1-sort': return 'D-Zona ("Ho\"l meva 1-sort")';
+    case 'Ho\'l meva 2-sort': return 'E-Zona ("Ho\"l meva 2-sort")';
+    case 'Ho\'l meva 3-sort': return 'F-Zona ("Ho\"l meva 3-sort")';
+    default: return 'A-Zona ("Quruq meva 1-sort")';
+  }
+};
+
+// Mahsulotning joylashgan omborlarini hisoblash
+const getProductLocations = (product, transactions) => {
+  if (!product) return 'A-Zona ("Quruq meva 1-sort")';
+  const defaultZone = getProductZone(product);
+  
+  // Mahsulotga tegishli bo'lgan barcha Ko'chirish tranzaksiyalarini olamiz
+  const transfers = transactions.filter(t => t.inventory_id === product.id && t.type === "Ko'chirish");
+  
+  const zoneTransfers = {};
+  transfers.forEach(t => {
+    zoneTransfers[t.zone] = (zoneTransfers[t.zone] || 0) + (t.quantity || 0);
+  });
+
+  const locations = [];
+  let totalTransferred = 0;
+
+  Object.entries(zoneTransfers).forEach(([zoneName, qty]) => {
+    if (qty > 0) {
+      locations.push(`${zoneName} (${qty} ${product.unit})`);
+      totalTransferred += qty;
+    }
+  });
+
+  const remaining = product.stock_level - totalTransferred;
+  if (remaining > 0) {
+    locations.unshift(`${defaultZone} (${remaining} ${product.unit})`);
+  } else if (remaining === 0 && locations.length === 0) {
+    locations.push(`${defaultZone} (0 ${product.unit})`);
+  } else if (remaining < 0) {
+    locations.unshift(`${defaultZone} (0 ${product.unit})`);
+  }
+
+  return locations.length > 0 ? locations.join(', ') : defaultZone;
+};
 
 export const Inventory = () => {
+  const { showNotification } = useNotification();
   const [products, setProducts] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   
@@ -14,10 +67,7 @@ export const Inventory = () => {
   const [formData, setFormData] = useState({
     sku: '',
     name: '',
-    category: 'Elektronika',
-    stock_level: '',
-    unit: 'dona',
-    price: ''
+    category: 'Quruq meva 1-sort'
   });
 
   // Fetch data
@@ -35,9 +85,17 @@ export const Inventory = () => {
       
       if (error) throw error;
       setProducts(data || []);
+
+      // Ombor ko'chirishlarini ham olib kelamiz
+      const { data: transData, error: transError } = await supabase
+        .from('warehouse_transactions')
+        .select('*');
+      if (!transError) {
+        setTransactions(transData || []);
+      }
     } catch (error) {
       console.error("Error fetching inventory:", error.message);
-      alert("Ma'lumotlarni yuklashda xatolik yuz berdi!");
+      showNotification("Ma'lumotlarni yuklashda xatolik yuz berdi!", "error");
     } finally {
       setLoading(false);
     }
@@ -80,10 +138,7 @@ export const Inventory = () => {
     setFormData({
       sku: generateSKU(defaultCategory),
       name: '',
-      category: defaultCategory,
-      stock_level: '',
-      unit: 'dona',
-      price: ''
+      category: defaultCategory
     });
     setIsModalOpen(true);
   };
@@ -93,10 +148,7 @@ export const Inventory = () => {
     setFormData({
       sku: product.sku,
       name: product.name,
-      category: product.category,
-      stock_level: product.stock_level,
-      unit: product.unit,
-      price: product.price
+      category: product.category
     });
     setIsModalOpen(true);
   };
@@ -104,16 +156,18 @@ export const Inventory = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const stock = parseInt(formData.stock_level) || 0;
-      const statusLabel = getStatus(stock).label;
-      const payload = {
+      const payload = editingId ? {
+        sku: formData.sku,
+        name: formData.name,
+        category: formData.category
+      } : {
         sku: formData.sku,
         name: formData.name,
         category: formData.category,
-        stock_level: stock,
-        unit: formData.unit,
-        price: parseFloat(formData.price) || 0,
-        status: statusLabel
+        stock_level: 0,
+        unit: 'kg',
+        price: 0,
+        status: 'Tugagan'
       };
 
       if (editingId) {
@@ -123,19 +177,21 @@ export const Inventory = () => {
           .update(payload)
           .eq('id', editingId);
         if (error) throw error;
+        showNotification("Mahsulot muvaffaqiyatli yangilandi!", "success");
       } else {
         // Insert
         const { error } = await supabase
           .from('inventory')
           .insert([payload]);
         if (error) throw error;
+        showNotification("Yangi mahsulot muvaffaqiyatli qo'shildi!", "success");
       }
       
       setIsModalOpen(false);
       fetchProducts(); // Refresh list
     } catch (error) {
       console.error("Error saving product:", error.message);
-      alert("Saqlashda xatolik yuz berdi! SKU takrorlanmaganiga ishonch hosil qiling.");
+      showNotification("Saqlashda xatolik yuz berdi! SKU takrorlanmaganiga ishonch hosil qiling.", "error");
     }
   };
 
@@ -147,10 +203,11 @@ export const Inventory = () => {
           .delete()
           .eq('id', id);
         if (error) throw error;
+        showNotification("Mahsulot muvaffaqiyatli o'chirildi!", "success");
         fetchProducts(); // Refresh list
       } catch (error) {
         console.error("Error deleting product:", error.message);
-        alert("O'chirishda xatolik yuz berdi. Mahsulot boshqa jadvallarga bog'langan bo'lishi mumkin.");
+        showNotification("O'chirishda xatolik yuz berdi. Mahsulot boshqa jadvallarga bog'langan bo'lishi mumkin.", "error");
       }
     }
   };
@@ -235,29 +292,36 @@ export const Inventory = () => {
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">SKU</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Mahsulot Nomi</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Kategoriya</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Ombor (Hudud)</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Qoldiq</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Narx</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Umumiy Summa</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Holati</th>
                 <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Amallar</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <Loader variant="table" colSpan={7} text="Inventar yuklanmoqda..." />
+                <Loader variant="table" colSpan={9} text="Inventar yuklanmoqda..." />
               ) : filteredProducts.length === 0 ? (
-                <tr><td colSpan="7" className="px-6 py-10 text-center text-slate-500">Hech narsa topilmadi</td></tr>
+                <tr><td colSpan="9" className="px-6 py-10 text-center text-slate-500">Hech narsa topilmadi</td></tr>
               ) : (
                 filteredProducts.map((product) => {
                   const statusObj = getStatus(product.stock_level);
+                  const totalSum = product.stock_level * product.price;
                   return (
                     <tr key={product.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-500">{product.sku}</td>
                       <td className="px-6 py-4 text-sm font-medium text-slate-900">{product.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{product.category}</td>
+                      <td className="px-6 py-4 text-sm text-slate-600 font-medium max-w-[200px] truncate" title={getProductLocations(product, transactions)}>
+                        {getProductLocations(product, transactions)}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">
                         {product.stock_level} <span className="text-xs text-slate-400 font-normal ml-1">{product.unit}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{product.price.toLocaleString()} so'm</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-blue-600">{totalSum.toLocaleString()} so'm</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${statusObj.color}`}>
                           {statusObj.label}
@@ -292,7 +356,7 @@ export const Inventory = () => {
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">SKU (Kod)</label>
                   <input required type="text" name="sku" value={formData.sku} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-slate-50 text-slate-500 cursor-not-allowed" placeholder="Avtomatik..." disabled={true}/>
@@ -314,25 +378,6 @@ export const Inventory = () => {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Mahsulot Nomi</label>
                 <input required type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" placeholder="Noutbuk HP Pavilion"/>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Qoldiq</label>
-                  <input required type="number" name="stock_level" value={formData.stock_level} onChange={handleChange} min="0" className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"/>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">O'lchov</label>
-                  <select name="unit" value={formData.unit} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all text-sm">
-                    <option value="dona">Dona</option>
-                    <option value="kg">Kg</option>
-                    <option value="quti">Quti</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Narxi (so'm)</label>
-                  <input required type="number" name="price" value={formData.price} onChange={handleChange} min="0" step="0.01" className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"/>
-                </div>
               </div>
 
               <div className="pt-4 flex gap-3">

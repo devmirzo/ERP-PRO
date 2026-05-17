@@ -7,3 +7,6 @@ export { Reports as Reports } from './Reports';
 export { Login as Login } from './Login';
 export { Sensors as Sensors } from './Sensors';
 export { Clients as Clients } from './Clients';
+export { Profile as Profile } from './Profile';
+export { Settings as Settings } from './Settings';
+export { Messages as Messages } from './Messages';

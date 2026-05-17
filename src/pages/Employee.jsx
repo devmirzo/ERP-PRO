@@ -1,11 +1,24 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Users, Search, Plus, Filter, MoreVertical, Mail, Phone, Building, Briefcase, X, CheckCircle2, DollarSign, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Loader } from '../components/Loader';
+import { useNotification } from '../context/NotificationContext';
 
 export const Employee = () => {
+  const navigate = useNavigate();
+  const { showNotification } = useNotification();
   const [employees, setEmployees] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const formatPhoneForDisplay = (phone) => {
+    if (!phone) return 'Kiritilmagan';
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 12 && cleaned.startsWith('998')) {
+      return `+998 (${cleaned.slice(3, 5)}) ${cleaned.slice(5, 8)}-${cleaned.slice(8, 10)}-${cleaned.slice(10, 12)}`;
+    }
+    return phone;
+  };
   const [filterDept, setFilterDept] = useState('Barchasi');
   const [loading, setLoading] = useState(true);
 
@@ -85,11 +98,36 @@ export const Employee = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => {
-      const updated = { ...prev, [name]: value };
-      if (name === 'role' && !editingId) {
-        updated.emp_id = generateEmpID(value);
+    let finalValue = value;
+
+    if (name === 'phone') {
+      let cleaned = value.replace(/[^\d+]/g, '');
+      if (!cleaned.startsWith('+998')) {
+        cleaned = '+998' + cleaned.replace(/^\+?9?9?8?/, '');
       }
+      finalValue = cleaned.slice(0, 13);
+    }
+
+    setFormData(prev => {
+      const updated = { ...prev, [name]: finalValue };
+      if (name === 'role' && !editingId) {
+        updated.emp_id = generateEmpID(finalValue);
+      }
+      
+      // Auto email and password generation on adding new employee
+      if (name === 'name' && !editingId) {
+        const nameCleaned = value.toLowerCase()
+          .replace(/o'/g, 'o').replace(/o’/g, 'o')
+          .replace(/g'/g, 'g').replace(/g’/g, 'g')
+          .replace(/[^a-z0-9\s]/g, '')
+          .trim();
+        const emailPart = nameCleaned.replace(/\s+/g, '.');
+        const passPart = nameCleaned.replace(/\s+/g, '');
+        
+        updated.email = emailPart ? `${emailPart}@erppro.uz` : '';
+        updated.password = passPart;
+      }
+      
       return updated;
     });
   };
@@ -103,7 +141,7 @@ export const Employee = () => {
       department: 'Sotuv',
       base_salary: '',
       email: '',
-      phone: '',
+      phone: '+998',
       password: '',
       status: 'Faol'
     });
@@ -131,10 +169,11 @@ export const Employee = () => {
       try {
         const { error } = await supabase.from('employees').delete().eq('id', id);
         if (error) throw error;
+        showNotification("Xodim muvaffaqiyatli o'chirildi!", "success");
         fetchEmployees();
       } catch (error) {
         console.error(error);
-        alert("O'chirishda xato! Xodim ma'lumotlari boshqa joyga bog'langan bo'lishi mumkin.");
+        showNotification("O'chirishda xato! Xodim ma'lumotlari boshqa joyga bog'langan bo'lishi mumkin.", "error");
       }
     }
   };
@@ -150,15 +189,17 @@ export const Employee = () => {
       if (editingId) {
         const { error } = await supabase.from('employees').update(payload).eq('id', editingId);
         if (error) throw error;
+        showNotification("Xodim ma'lumotlari muvaffaqiyatli yangilandi!", "success");
       } else {
         const { error } = await supabase.from('employees').insert([payload]);
         if (error) throw error;
+        showNotification("Yangi xodim muvaffaqiyatli qo'shildi!", "success");
       }
       setIsModalOpen(false);
       fetchEmployees();
     } catch (error) {
       console.error(error);
-      alert("Saqlashda xatolik yuz berdi!");
+      showNotification("Saqlashda xatolik yuz berdi!", "error");
     }
   };
 
@@ -228,8 +269,30 @@ export const Employee = () => {
               </div>
 
               <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 space-y-3">
-                <div className="flex items-center gap-3 text-sm text-slate-600"><Mail className="w-4 h-4 text-slate-400" /> <span className="truncate">{emp.email || 'Kiritilmagan'}</span></div>
-                <div className="flex items-center gap-3 text-sm text-slate-600"><Phone className="w-4 h-4 text-slate-400" /> {emp.phone || 'Kiritilmagan'}</div>
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <Mail className="w-4 h-4 text-slate-400 shrink-0" />
+                  {emp.email ? (
+                    <button 
+                      onClick={() => navigate('/messages', { state: { selectUser: emp.id } })}
+                      className="text-blue-600 hover:text-blue-800 hover:underline font-semibold transition-all truncate text-left"
+                      title="Ushbu xodim bilan shaxsiy chatni boshlash"
+                    >
+                      {emp.email}
+                    </button>
+                  ) : (
+                    <span className="text-slate-400">Kiritilmagan</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <Phone className="w-4 h-4 text-slate-400" />
+                  {emp.phone ? (
+                    <a href={`tel:${emp.phone}`} className="text-blue-600 hover:text-blue-800 hover:underline font-semibold transition-all">
+                      {formatPhoneForDisplay(emp.phone)}
+                    </a>
+                  ) : (
+                    'Kiritilmagan'
+                  )}
+                </div>
               </div>
 
               <div className="px-6 py-4 border-t border-slate-100 bg-emerald-50/30">
@@ -260,7 +323,7 @@ export const Employee = () => {
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-               <div className="grid grid-cols-2 gap-4">
+               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div>
                    <label className="block text-sm font-medium text-slate-700 mb-1">Xodim ID (Avto)</label>
                    <input required type="text" name="emp_id" value={formData.emp_id} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-500 cursor-not-allowed" placeholder="Rol tanlanganidan keyin..." disabled={true}/>
@@ -281,7 +344,7 @@ export const Employee = () => {
                 <input required type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Aliyev Vali"/>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Lavozimi (Rol)</label>
                   <select required name="role" value={formData.role} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500">
@@ -297,7 +360,7 @@ export const Employee = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Telefon</label>
                   <input type="text" name="phone" value={formData.phone} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="+998 90 ..."/>
@@ -312,7 +375,7 @@ export const Employee = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Email (Login uchun)</label>
                   <input required type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="ali@erp.com"/>

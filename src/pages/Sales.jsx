@@ -3,8 +3,10 @@ import { ShoppingCart, TrendingUp, DollarSign, ArrowUpRight, Plus, Search, Calen
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Loader } from '../components/Loader';
+import { useNotification } from '../context/NotificationContext';
 
 export const Sales = () => {
+  const { showNotification } = useNotification();
   const { user } = useAuth();
   const [sales, setSales] = useState([]);
   const [clients, setClients] = useState([]);
@@ -88,14 +90,14 @@ export const Sales = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.client_id || !formData.inventory_id || !formData.employee_id) {
-       return alert("Barcha maydonlarni to'ldiring!");
+       return showNotification("Barcha maydonlarni to'ldiring!", "warning");
     }
 
     const qty = parseInt(formData.quantity);
     const selectedProduct = inventory.find(i => i.id === formData.inventory_id);
     
     if (qty > selectedProduct.stock_level) {
-       return alert(`Xatolik! Omborda faqat ${selectedProduct.stock_level} ta qolgan.`);
+       return showNotification(`Xatolik! Omborda faqat ${selectedProduct.stock_level} ta qolgan.`, "error");
     }
 
     const totalAmount = qty * (selectedProduct.price || 0);
@@ -119,13 +121,12 @@ export const Sales = () => {
       // 2. Reduce Inventory Stock
       await supabase.from('inventory').update({ stock_level: selectedProduct.stock_level - qty }).eq('id', formData.inventory_id);
 
-      // 3. Optional: Add amount to client's total_amount. (Skipping for now to keep it simple, or we can just calculate it dynamically).
-
+      showNotification("Sotuv operatsiyasi muvaffaqiyatli yakunlandi!", "success");
       setIsModalOpen(false);
       fetchData(); // Refresh everything
     } catch (error) {
        console.error("Error saving sale:", error.message);
-       alert("Saqlashda xatolik yuz berdi!");
+       showNotification("Saqlashda xatolik yuz berdi!", "error");
     }
   };
 
@@ -234,7 +235,7 @@ export const Sales = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-slate-800">{sale.inventory?.name || 'Noma\'lum'}</div>
-                      <div className="text-xs text-slate-500">{sale.quantity} dona x {sale.inventory?.price} so'm</div>
+                      <div className="text-xs text-slate-500">{sale.quantity} kg x {sale.inventory?.price} so'm</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{sale.payment_method}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{sale.employees?.name || 'Noma\'lum'}</td>
@@ -288,7 +289,7 @@ export const Sales = () => {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Miqdori</label>
                   <input required type="number" name="quantity" value={formData.quantity} onChange={handleChange} min="1" className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500"/>

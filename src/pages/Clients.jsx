@@ -2,10 +2,21 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Users, Search, Plus, MapPin, Phone, Building2, UserCircle, Briefcase, X, CheckCircle2, Edit, Trash2, ShoppingBag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Loader } from '../components/Loader';
+import { useNotification } from '../context/NotificationContext';
 
 export const Clients = () => {
+  const { showNotification } = useNotification();
   const [clients, setClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+
+  const formatPhoneForDisplay = (phone) => {
+    if (!phone) return 'Kiritilmagan';
+    const cleaned = phone.replace(/\D/g, '');
+    if (cleaned.length === 12 && cleaned.startsWith('998')) {
+      return `+998 (${cleaned.slice(3, 5)}) ${cleaned.slice(5, 8)}-${cleaned.slice(8, 10)}-${cleaned.slice(10, 12)}`;
+    }
+    return phone;
+  };
   const [loading, setLoading] = useState(true);
   
   // Modal State
@@ -59,12 +70,22 @@ export const Clients = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    let finalValue = value;
+
+    if (name === 'phone') {
+      let cleaned = value.replace(/[^\d+]/g, '');
+      if (!cleaned.startsWith('+998')) {
+        cleaned = '+998' + cleaned.replace(/^\+?9?9?8?/, '');
+      }
+      finalValue = cleaned.slice(0, 13);
+    }
+
+    setFormData(prev => ({ ...prev, [name]: finalValue }));
   };
 
   const openAddModal = () => {
     setEditingId(null);
-    setFormData({ cli_id: `CLI-${Math.floor(Math.random() * 10000)}`, company_name: '', contact_person: '', phone: '', address: '', status: 'Faol' });
+    setFormData({ cli_id: `CLI-${Math.floor(Math.random() * 10000)}`, company_name: '', contact_person: '', phone: '+998', address: '', status: 'Faol' });
     setIsModalOpen(true);
   };
 
@@ -86,10 +107,11 @@ export const Clients = () => {
       try {
         const { error } = await supabase.from('clients').delete().eq('id', id);
         if (error) throw error;
+        showNotification("Mijoz muvaffaqiyatli o'chirildi!", "success");
         fetchClients();
       } catch(error) {
         console.error(error);
-        alert("O'chirishda xatolik! Mijoz boshqa jadvallarga bog'langan bo'lishi mumkin.");
+        showNotification("O'chirishda xatolik! Mijoz boshqa jadvallarga bog'langan bo'lishi mumkin.", "error");
       }
     }
   };
@@ -102,15 +124,17 @@ export const Clients = () => {
       if (editingId) {
         const { error } = await supabase.from('clients').update(payload).eq('id', editingId);
         if (error) throw error;
+        showNotification("Mijoz ma'lumotlari muvaffaqiyatli yangilandi!", "success");
       } else {
         const { error } = await supabase.from('clients').insert([payload]);
         if (error) throw error;
+        showNotification("Yangi mijoz muvaffaqiyatli qo'shildi!", "success");
       }
       setIsModalOpen(false);
       fetchClients();
     } catch (error) {
       console.error(error);
-      alert("Xato: " + (error?.message || JSON.stringify(error)));
+      showNotification("Saqlashda xatolik yuz berdi: " + (error?.message || "Noma'lum xato"), "error");
     }
   };
 
@@ -170,7 +194,13 @@ export const Clients = () => {
                 </div>
                 <div className="flex items-center gap-3 text-sm text-slate-600">
                   <Phone className="w-4 h-4 text-slate-400 shrink-0" />
-                  {client.phone}
+                  {client.phone ? (
+                    <a href={`tel:${client.phone}`} className="text-blue-600 hover:text-blue-800 hover:underline font-semibold transition-all">
+                      {formatPhoneForDisplay(client.phone)}
+                    </a>
+                  ) : (
+                    'Kiritilmagan'
+                  )}
                 </div>
                 <div className="flex items-start gap-3 text-sm text-slate-600">
                   <MapPin className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
@@ -194,7 +224,7 @@ export const Clients = () => {
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Mijoz ID (Avto)</label>
                   <input required type="text" name="cli_id" value={formData.cli_id} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-slate-50 text-slate-500 cursor-not-allowed" placeholder="Avtomatik..." disabled={true}/>
@@ -205,7 +235,7 @@ export const Clients = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Mas'ul Shaxs</label>
                   <input required type="text" name="contact_person" value={formData.contact_person} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" placeholder="Aliyev Vali"/>
