@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Users, Search, Plus, MapPin, Phone, Building2, UserCircle, Briefcase, X, CheckCircle2, Edit, Trash2, ShoppingBag } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { Loader } from '../components/Loader';
 
 export const Clients = () => {
   const [clients, setClients] = useState([]);
@@ -133,7 +134,7 @@ export const Clients = () => {
       </div>
 
       {loading ? (
-        <div className="text-center py-10 text-slate-500">Yuklanmoqda...</div>
+        <Loader variant="block" text="Mijozlar yuklanmoqda..." />
       ) : filteredClients.length === 0 ? (
         <div className="bg-white p-10 rounded-xl shadow-sm border border-slate-200 text-center">
           <Briefcase className="w-12 h-12 text-slate-300 mx-auto mb-3" />
@@ -196,7 +197,7 @@ export const Clients = () => {
               <div className="grid grid-cols-2 gap-4">
                  <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Mijoz ID (Avto)</label>
-                  <input required type="text" name="cli_id" value={formData.cli_id} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" disabled={editingId ? true : false}/>
+                  <input required type="text" name="cli_id" value={formData.cli_id} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-slate-50 text-slate-500 cursor-not-allowed" placeholder="Avtomatik..." disabled={true}/>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Firma / Mijoz Nomi</label>

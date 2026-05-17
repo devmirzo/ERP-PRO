@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FileText, Download, Filter, Search, Plus, FileDown, Table, Archive, Trash2, X, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { Loader } from '../components/Loader';
 
 export const Reports = () => {
   const [reports, setReports] = useState([]);
@@ -145,7 +146,7 @@ export const Reports = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
                {loading ? (
-                 <tr><td colSpan="5" className="px-6 py-10 text-center text-slate-500">Yuklanmoqda...</td></tr>
+                 <Loader variant="table" colSpan={5} text="Hisobotlar yuklanmoqda..." />
               ) : filteredReports.length === 0 ? (
                 <tr><td colSpan="5" className="px-6 py-10 text-center text-slate-500">
                   <Archive className="w-10 h-10 text-slate-300 mx-auto mb-2" /> Hujjatlar arxivi bo'sh

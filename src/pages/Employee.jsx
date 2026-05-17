@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Users, Search, Plus, Filter, MoreVertical, Mail, Phone, Building, Briefcase, X, CheckCircle2, DollarSign, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { Loader } from '../components/Loader';
 
 export const Employee = () => {
   const [employees, setEmployees] = useState([]);
@@ -72,14 +73,40 @@ export const Employee = () => {
     }
   };
 
+  const generateEmpID = (role) => {
+    const prefixes = {
+      'Sotuvchi': 'EMP-SOT',
+      'Meneger': 'EMP-MNG',
+      'Bosh Admin': 'EMP-ADM',
+    };
+    const prefix = prefixes[role] || 'EMP';
+    return `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      if (name === 'role' && !editingId) {
+        updated.emp_id = generateEmpID(value);
+      }
+      return updated;
+    });
   };
 
   const openAddModal = () => {
     setEditingId(null);
-    setFormData({ emp_id: `EMP-${Math.floor(Math.random() * 10000)}`, name: '', role: '', department: 'Sotuv', base_salary: '', email: '', phone: '', password: '', status: 'Faol' });
+    setFormData({
+      emp_id: '',
+      name: '',
+      role: '',
+      department: 'Sotuv',
+      base_salary: '',
+      email: '',
+      phone: '',
+      password: '',
+      status: 'Faol'
+    });
     setIsModalOpen(true);
   };
 
@@ -174,7 +201,7 @@ export const Employee = () => {
       </div>
 
       {loading ? (
-        <div className="text-center py-10 text-slate-500">Yuklanmoqda...</div>
+        <Loader variant="block" text="Xodimlar yuklanmoqda..." />
       ) : filteredEmployees.length === 0 ? (
         <div className="text-center py-10 text-slate-500 bg-white rounded-xl border">Xodimlar topilmadi.</div>
       ) : (
@@ -236,7 +263,7 @@ export const Employee = () => {
                <div className="grid grid-cols-2 gap-4">
                  <div>
                    <label className="block text-sm font-medium text-slate-700 mb-1">Xodim ID (Avto)</label>
-                   <input required type="text" name="emp_id" value={formData.emp_id} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500" disabled={editingId ? true : false}/>
+                   <input required type="text" name="emp_id" value={formData.emp_id} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 bg-slate-50 text-slate-500 cursor-not-allowed" placeholder="Rol tanlanganidan keyin..." disabled={true}/>
                  </div>
                  <div>
                    <label className="block text-sm font-medium text-slate-700 mb-1">Bo'lim</label>

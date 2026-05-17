@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, Users, Package, ShoppingCart, DollarSign, Activity, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { Loader } from '../components/Loader';
 
 export const Home = () => {
   const { user } = useAuth();
@@ -66,7 +67,7 @@ export const Home = () => {
   };
 
   if (loading) {
-    return <div className="animate-pulse flex items-center justify-center py-20 text-slate-500">Statistika yuklanmoqda...</div>;
+    return <Loader variant="block" text="Statistika yuklanmoqda..." />;
   }
 
   // Sotuvchi Dashboardi

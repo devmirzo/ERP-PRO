@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Warehouse as WarehouseIcon, Search, Plus, ArrowUpRight, ArrowDownRight, ArrowRightLeft, X, CheckCircle2, History } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { Loader } from '../components/Loader';
 
 // Vaqtincha Zonalar ma'lumotlari (buni qattiq qoldiramiz)
 const zones = [
@@ -220,7 +221,7 @@ export const Warehouse = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan="5" className="px-6 py-10 text-center text-slate-500">Yuklanmoqda...</td></tr>
+                <Loader variant="table" colSpan={5} text="Operatsiyalar yuklanmoqda..." />
               ) : filteredTransactions.length === 0 ? (
                 <tr><td colSpan="5" className="px-6 py-10 text-center text-slate-500">Hech qanday tranzaksiya topilmadi</td></tr>
               ) : (

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Package, Search, Filter, Plus, Edit, Trash2, X, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { Loader } from '../components/Loader';
 
 export const Inventory = () => {
   const [products, setProducts] = useState([]);
@@ -48,14 +49,42 @@ export const Inventory = () => {
     return { label: 'Tugagan', color: 'bg-red-100 text-red-700 ring-red-600/20' };
   };
 
+  const generateSKU = (category) => {
+    const prefixes = {
+      'Quruq meva 1-sort': 'QM1',
+      'Quruq meva 2-sort': 'QM2',
+      'Quruq meva 3-sort': 'QM3',
+      'Don don': 'DD',
+      'Ho\'l meva 1-sort': 'HM1',
+      'Ho\'l meva 2-sort': 'HM2',
+      'Ho\'l meva 3-sort': 'HM3',
+    };
+    const prefix = prefixes[category] || 'GEN';
+    return `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      if (name === 'category' && !editingId) {
+        updated.sku = generateSKU(value);
+      }
+      return updated;
+    });
   };
 
   const openAddModal = () => {
     setEditingId(null);
-    setFormData({ sku: '', name: '', category: 'Elektronika', stock_level: '', unit: 'dona', price: '' });
+    const defaultCategory = 'Quruq meva 1-sort';
+    setFormData({
+      sku: generateSKU(defaultCategory),
+      name: '',
+      category: defaultCategory,
+      stock_level: '',
+      unit: 'dona',
+      price: ''
+    });
     setIsModalOpen(true);
   };
 
@@ -214,7 +243,7 @@ export const Inventory = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan="7" className="px-6 py-10 text-center text-slate-500">Yuklanmoqda...</td></tr>
+                <Loader variant="table" colSpan={7} text="Inventar yuklanmoqda..." />
               ) : filteredProducts.length === 0 ? (
                 <tr><td colSpan="7" className="px-6 py-10 text-center text-slate-500">Hech narsa topilmadi</td></tr>
               ) : (
@@ -266,7 +295,7 @@ export const Inventory = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">SKU (Kod)</label>
-                  <input required type="text" name="sku" value={formData.sku} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all" placeholder="Masalan: EL-001" disabled={editingId ? true : false}/>
+                  <input required type="text" name="sku" value={formData.sku} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all bg-slate-50 text-slate-500 cursor-not-allowed" placeholder="Avtomatik..." disabled={true}/>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Kategoriya</label>

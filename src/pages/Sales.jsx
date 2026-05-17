@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ShoppingCart, TrendingUp, DollarSign, ArrowUpRight, Plus, Search, Calendar, CheckCircle2, User, UserCircle, Edit, Trash2, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { Loader } from '../components/Loader';
 
 export const Sales = () => {
   const { user } = useAuth();
@@ -215,7 +216,7 @@ export const Sales = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                 <tr><td colSpan="6" className="px-6 py-10 text-center text-slate-500">Yuklanmoqda...</td></tr>
+                 <Loader variant="table" colSpan={6} text="Sotuvlar yuklanmoqda..." />
               ) : filteredSales.length === 0 ? (
                  <tr><td colSpan="6" className="px-6 py-10 text-center text-slate-500">Hech qanday sotuv topilmadi</td></tr>
               ) : (

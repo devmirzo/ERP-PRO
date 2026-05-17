@@ -6,11 +6,13 @@ import { useAuth } from './context/AuthContext';
 import { Layouts } from './layouts/Layouts';
 import { Home, Inventory, Warehouse, Sales, Employee, Reports, Sensors, Clients, Login } from './pages/index';
 
+import { Loader } from './components/Loader';
+
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
 
-  if (loading) return <div className="h-screen w-screen flex items-center justify-center bg-slate-50">Yuklanmoqda...</div>;
+  if (loading) return <Loader variant="fullscreen" text="Yuklanmoqda..." />;
 
   if (!user) {
     return <Navigate to="/login" replace />;
