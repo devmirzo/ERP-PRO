@@ -42,19 +42,38 @@ export const Profile = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
 
+  const phoneLocal = formData.phone ? formData.phone.replace(/^\+998/, '') : '';
+  const emailLocal = formData.email ? formData.email.split('@')[0] : '';
+
+  const formatPhoneLocal = (digits) => {
+    if (!digits) return '';
+    const part1 = digits.slice(0, 2);
+    const part2 = digits.slice(2, 5);
+    const part3 = digits.slice(5, 7);
+    const part4 = digits.slice(7, 9);
+    
+    let formatted = part1;
+    if (part2) formatted += ' ' + part2;
+    if (part3) formatted += ' ' + part3;
+    if (part4) formatted += ' ' + part4;
+    return formatted;
+  };
+
   const handleProfileChange = (e) => {
     const { name, value } = e.target;
-    let finalValue = value;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
-    if (name === 'phone') {
-      let cleaned = value.replace(/[^\d+]/g, '');
-      if (!cleaned.startsWith('+998')) {
-        cleaned = '+998' + cleaned.replace(/^\+?9?9?8?/, '');
-      }
-      finalValue = cleaned.slice(0, 13);
-    }
+  const handlePhoneLocalChange = (e) => {
+    const value = e.target.value;
+    const digits = value.replace(/\D/g, '').slice(0, 9);
+    setFormData(prev => ({ ...prev, phone: `+998${digits}` }));
+  };
 
-    setFormData(prev => ({ ...prev, [name]: finalValue }));
+  const handleEmailLocalChange = (e) => {
+    const value = e.target.value;
+    const localPart = value.replace(/[^a-zA-Z0-9._-]/g, '');
+    setFormData(prev => ({ ...prev, email: localPart ? `${localPart}@erppro.uz` : '' }));
   };
 
   const handlePasswordChange = (e) => {
@@ -66,6 +85,15 @@ export const Profile = () => {
     e.preventDefault();
     if (!formData.name || !formData.email || !formData.phone) {
       return showNotification("Iltimos, barcha maydonlarni to'ldiring!", "warning");
+    }
+
+    if (formData.phone.length !== 13) {
+      return showNotification("Telefon raqami noto'g'ri shakllantirilgan. Iltimos, 9 xonali raqam kiriting!", "warning");
+    }
+
+    const emailParts = formData.email.split('@');
+    if (!emailParts[0] || emailParts[1] !== 'erppro.uz') {
+      return showNotification("Email manzili noto'g'ri shakllantirilgan!", "warning");
     }
 
     try {
@@ -227,17 +255,39 @@ export const Profile = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Email manzili</label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input required type="email" name="email" value={formData.email} onChange={handleProfileChange} className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" />
+                  <div className="relative flex items-center">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
+                    <input 
+                      required 
+                      type="text" 
+                      name="email_local" 
+                      value={emailLocal} 
+                      onChange={handleEmailLocalChange} 
+                      placeholder="foydalanuvchi"
+                      className="w-full pl-10 pr-32 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-medium" 
+                    />
+                    <span className="absolute right-2 px-3 py-1 bg-slate-100 border border-slate-200 text-slate-500 font-semibold text-xs rounded-lg select-none">
+                      @erppro.uz
+                    </span>
                   </div>
                 </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Telefon raqam</label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input required type="text" name="phone" value={formData.phone} onChange={handleProfileChange} className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" />
+                <div className="relative flex items-center">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 z-10" />
+                  <span className="absolute left-10 text-sm font-semibold text-slate-500 select-none bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">
+                    +998
+                  </span>
+                  <input 
+                    required 
+                    type="text" 
+                    name="phone_local" 
+                    value={formatPhoneLocal(phoneLocal)} 
+                    onChange={handlePhoneLocalChange} 
+                    placeholder="90 123 45 67"
+                    className="w-full pl-24 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm font-medium" 
+                  />
                 </div>
               </div>
               <div className="flex justify-end pt-2">
