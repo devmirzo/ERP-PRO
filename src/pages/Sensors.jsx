@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Radio, Thermometer, Droplets, Wind, Flame, AlertTriangle, Wifi, WifiOff, RefreshCcw, Activity, Plus, X, CheckCircle2, Trash2 } from 'lucide-react';
+import { Radio, Thermometer, Droplets, AlertTriangle, Wifi, WifiOff, RefreshCcw, Activity, Plus, X, CheckCircle2, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export const Sensors = () => {
@@ -11,8 +11,10 @@ export const Sensors = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    type: 'Temperature',
-    location: 'Ombor A'
+    snr_id: '',
+    temperature: '',
+    humidity: '',
+    connection: 'Online'
   });
 
   useEffect(() => {
@@ -21,23 +23,20 @@ export const Sensors = () => {
 
   const fetchData = async () => {
     try {
-      const { data: sData } = await supabase.from('sensors').select('*').order('updated_at', { ascending: false });
-      const { data: aData } = await supabase.from('alert_logs').select('*').order('date', { ascending: false });
+      const { data: sData } = await supabase
+        .from('sensors')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      const { data: aData } = await supabase
+        .from('alert_logs')
+        .select('*')
+        .order('date', { ascending: false });
       
       setSensors(sData || []);
       setAlertLog(aData || []);
     } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const getSensorStyles = (type) => {
-    switch (type) {
-      case 'Temperature': return { icon: Thermometer, color: 'text-orange-500', bg: 'bg-orange-100' };
-      case 'Humidity': return { icon: Droplets, color: 'text-blue-500', bg: 'bg-blue-100' };
-      case 'Smoke': return { icon: Wind, color: 'text-emerald-500', bg: 'bg-emerald-100' };
-      case 'Fire': return { icon: Flame, color: 'text-red-500', bg: 'bg-red-100' };
-      default: return { icon: Radio, color: 'text-slate-500', bg: 'bg-slate-100' };
+      console.error("Datchiklarni yuklashda xatolik:", error);
     }
   };
 
@@ -48,97 +47,64 @@ export const Sensors = () => {
 
   const handleAddDevice = async (e) => {
     e.preventDefault();
-    let newRawValue, newUnit;
-    switch(formData.type) {
-      case 'Temperature': newRawValue = 20; newUnit = '°C'; break;
-      case 'Humidity': newRawValue = 40; newUnit = '%'; break;
-      case 'Smoke': newRawValue = 0.01; newUnit = ' ppm'; break;
-      case 'Fire': newRawValue = 0; newUnit = ''; break;
-      default: newRawValue = 0; newUnit = '';
+    if (!formData.name || !formData.snr_id) {
+      return alert("Nomi va SNR-ID kiritilishi shart!");
     }
 
     const payload = {
-      snr_id: `SNR-${Math.floor(Math.random() * 10000)}`,
-      name: `${formData.name} (${formData.location})`,
-      type: formData.type,
-      raw_value: newRawValue,
-      unit: newUnit,
-      status: 'Normal',
-      connection: 'Online',
-      location: formData.location
+      snr_id: formData.snr_id,
+      name: formData.name,
+      temperature: formData.temperature !== '' ? Number(formData.temperature) : null,
+      humidity: formData.humidity !== '' ? Number(formData.humidity) : null,
+      connection: formData.connection
     };
 
     try {
-      await supabase.from('sensors').insert([payload]);
+      const { error } = await supabase.from('sensors').insert([payload]);
+      if (error) throw error;
+      
       setIsModalOpen(false);
-      setFormData({ name: '', type: 'Temperature', location: 'Ombor A' });
+      setFormData({ name: '', snr_id: '', temperature: '', humidity: '', connection: 'Online' });
       fetchData();
-    } catch(err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+      alert("Xatolik yuz berdi: " + err.message);
+    }
   };
 
   const handleDelete = async (id) => {
-    if(window.confirm("Bu qurilmani o'chirmoqchimisiz?")) {
-      await supabase.from('sensors').delete().eq('id', id);
-      fetchData();
+    if (window.confirm("Bu qurilmani o'chirmoqchimisiz?")) {
+      try {
+        const { error } = await supabase.from('sensors').delete().eq('id', id);
+        if (error) throw error;
+        fetchData();
+      } catch (err) {
+        console.error(err);
+        alert("O'chirishda xatolik yuz berdi: " + err.message);
+      }
     }
   };
 
   const clearLogs = async () => {
-    if(window.confirm("Jurnalni tozalaysizmi?")) {
-      // Supabase'da truncate yoki delete all uchun:
-      const { data } = await supabase.from('alert_logs').select('id');
-      if (data && data.length > 0) {
-        await supabase.from('alert_logs').delete().in('id', data.map(d => d.id));
+    if (window.confirm("Jurnalni tozalaysizmi?")) {
+      try {
+        const { data } = await supabase.from('alert_logs').select('id');
+        if (data && data.length > 0) {
+          await supabase.from('alert_logs').delete().in('id', data.map(d => d.id));
+        }
+        fetchData();
+      } catch (err) {
+        console.error(err);
       }
-      fetchData();
     }
   };
 
-  // Simulating live data update
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    
-    let newAlerts = [];
-    
-    for (let sensor of sensors) {
-      if (sensor.connection === 'Offline') continue;
-
-      let updatedVal = sensor.raw_value;
-      let newStatus = 'Normal';
-      
-      if (sensor.type === 'Temperature') {
-        updatedVal = sensor.raw_value + (Math.random() * 2 - 1);
-        if (updatedVal > 28) newStatus = 'Warning';
-      } else if (sensor.type === 'Humidity') {
-        updatedVal = sensor.raw_value + (Math.random() * 4 - 2);
-        if (updatedVal < 30 || updatedVal > 60) newStatus = 'Warning';
-      } else if (sensor.type === 'Smoke') {
-        updatedVal = sensor.raw_value + (Math.random() * 0.02 - 0.01); 
-        if (updatedVal < 0) updatedVal = 0;
-        if (updatedVal > 0.05) newStatus = 'Warning';
-      }
-
-      updatedVal = Number(updatedVal.toFixed(2));
-
-      await supabase.from('sensors').update({ raw_value: updatedVal, status: newStatus, updated_at: new Date().toISOString() }).eq('id', sensor.id);
-
-      if (newStatus === 'Warning' && sensor.status === 'Normal') {
-        newAlerts.push({
-          sensor_info: `${sensor.snr_id} (${sensor.name})`,
-          message: `Xavfli ko'rsatkich: ${updatedVal}${sensor.unit}`,
-          level: 'Yuqori'
-        });
-      }
-    }
-
-    if (newAlerts.length > 0) {
-      await supabase.from('alert_logs').insert(newAlerts);
-    }
-    
+    await fetchData();
     setTimeout(() => {
-      fetchData();
       setIsRefreshing(false);
-    }, 800);
+    }, 600);
   };
 
   return (
@@ -146,7 +112,7 @@ export const Sensors = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">IoT Sensorlar</h1>
-          <p className="text-sm text-slate-500 mt-1">Ombor va hududlardagi real vaqt holati nazorati (Supabase)</p>
+          <p className="text-sm text-slate-500 mt-1">Ombor va hududlardagi real vaqt datchiklari nazorati (Supabase)</p>
         </div>
         <div className="flex items-center gap-3">
           <button onClick={handleRefresh} disabled={isRefreshing} className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-50 shadow-sm transition-colors text-sm font-medium disabled:opacity-50">
@@ -160,24 +126,105 @@ export const Sensors = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         {sensors.map((sensor) => {
-          const styles = getSensorStyles(sensor.type);
-          const Icon = styles.icon;
-          const isOnline = sensor.connection === 'Online';
-          const isWarning = sensor.status === 'Warning';
-          let displayValue = sensor.type === 'Fire' ? (isWarning ? 'Xavf aniqlandi' : 'Xavf yo\'q') : `${sensor.raw_value}${sensor.unit}`;
+          const isOnline = sensor.connection === 'Online' || sensor.connection === 'online';
+          
+          // Warning thresholds
+          const isTempWarning = sensor.temperature !== null && (sensor.temperature > 35 || sensor.temperature < 10);
+          const isHumWarning = sensor.humidity !== null && (sensor.humidity > 75 || sensor.humidity < 25);
+          const isWarning = isTempWarning || isHumWarning;
+
+          const tempStatus = sensor.temperature === null ? 'Ulanmagan' : 
+            sensor.temperature > 35 ? 'Issiq' : 
+            sensor.temperature < 10 ? 'Sovuq' : 'Normal';
+            
+          const humStatus = sensor.humidity === null ? 'Ulanmagan' : 
+            sensor.humidity > 75 ? 'Yuqori' : 
+            sensor.humidity < 25 ? 'Quruq' : 'Normal';
 
           return (
             <div key={sensor.id} className={`bg-white p-5 rounded-2xl shadow-sm border transition-all relative overflow-hidden group ${isWarning ? 'border-red-300 shadow-red-100/50' : 'border-slate-200 hover:shadow-md'}`}>
-              <button onClick={() => handleDelete(sensor.id)} className="absolute top-4 right-10 p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity rounded-md"><Trash2 className="w-3.5 h-3.5" /></button>
-              <div className="absolute top-4 right-4 flex items-center gap-1.5">
-                {isOnline ? (<><span className="relative flex h-2 w-2"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span></span><Wifi className="w-3.5 h-3.5 text-emerald-500" /></>) : (<><span className="relative flex h-2 w-2"><span className="relative inline-flex rounded-full h-2 w-2 bg-slate-400"></span></span><WifiOff className="w-3.5 h-3.5 text-slate-400" /></>)}
+              
+              {/* Header: Name and status dot */}
+              <div className="flex justify-between items-start mb-4 pr-6">
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base line-clamp-1">{sensor.name}</h3>
+                  <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">{sensor.snr_id}</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-100 rounded-full px-2.5 py-1">
+                  {isOnline ? (
+                    <>
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-600 uppercase">Online</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="relative flex h-2 w-2">
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-slate-400"></span>
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase">Offline</span>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${isWarning ? 'bg-red-100 text-red-600 animate-pulse' : `${styles.bg} ${styles.color}`}`}><Icon className="w-6 h-6" /></div>
-              <h3 className="text-sm font-medium text-slate-500 mb-1 line-clamp-1 pr-12">{sensor.name}</h3>
-              <div className={`text-2xl font-bold mb-4 ${isWarning ? 'text-red-600' : 'text-slate-800'}`}>{displayValue}</div>
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                <span className="text-xs text-slate-400 font-medium">{sensor.snr_id}</span>
-                <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${isWarning ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>{sensor.status}</span>
+
+              {/* Body: Temperature and Humidity details */}
+              <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-slate-50">
+                {/* Temperature block */}
+                <div className={`p-3 rounded-xl flex flex-col justify-between ${
+                  isTempWarning ? 'bg-red-50/55 border border-red-100 animate-pulse' : 'bg-orange-50/40 border border-orange-100/60'
+                }`}>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    <Thermometer className={`w-4 h-4 ${isTempWarning ? 'text-red-500' : 'text-orange-500'}`} />
+                    <span>Harorat</span>
+                  </div>
+                  <div>
+                    <span className={`text-xl font-extrabold ${isTempWarning ? 'text-red-600' : 'text-slate-800'}`}>
+                      {sensor.temperature !== null ? `${sensor.temperature} °C` : '--'}
+                    </span>
+                    <span className={`block text-[10px] font-bold uppercase mt-1 tracking-wider ${
+                      tempStatus === 'Normal' ? 'text-emerald-600' : 'text-red-600'
+                    }`}>
+                      {tempStatus}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Humidity block */}
+                <div className={`p-3 rounded-xl flex flex-col justify-between ${
+                  isHumWarning ? 'bg-red-50/55 border border-red-100 animate-pulse' : 'bg-blue-50/40 border border-blue-100/60'
+                }`}>
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    <Droplets className={`w-4 h-4 ${isHumWarning ? 'text-red-500' : 'text-blue-500'}`} />
+                    <span>Namlik</span>
+                  </div>
+                  <div>
+                    <span className={`text-xl font-extrabold ${isHumWarning ? 'text-red-600' : 'text-slate-800'}`}>
+                      {sensor.humidity !== null ? `${sensor.humidity} %` : '--'}
+                    </span>
+                    <span className={`block text-[10px] font-bold uppercase mt-1 tracking-wider ${
+                      humStatus === 'Normal' ? 'text-emerald-600' : 'text-red-600'
+                    }`}>
+                      {humStatus}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Footer */}
+              <div className="flex justify-between items-center mt-4 pt-3 border-t border-slate-100">
+                <span className="text-[10px] text-slate-400 font-medium">
+                  {sensor.created_at ? new Date(sensor.created_at).toLocaleString('uz-UZ') : 'Noma\'lum vaqt'}
+                </span>
+                <button 
+                  onClick={() => handleDelete(sensor.id)} 
+                  className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                  title="Qurilmani o'chirish"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           );
@@ -227,25 +274,32 @@ export const Sensors = () => {
             <form onSubmit={handleAddDevice} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Datchik Nomi</label>
-                <input required type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Masalan: Harorat datchigi"/>
+                <input required type="text" name="name" value={formData.name} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" placeholder="Masalan: Harorat datchigi"/>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">SNR-ID (Unique)</label>
+                <input required type="text" name="snr_id" value={formData.snr_id} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" placeholder="Masalan: snr_01 yoki NodeMCU-MAC"/>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Qurilma Turi</label>
-                  <select name="type" value={formData.type} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
-                    <option value="Temperature">Harorat</option><option value="Humidity">Namlik</option><option value="Smoke">Tutun/Gaz</option><option value="Fire">Yong'in</option>
-                  </select>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Harorat (°C)</label>
+                  <input type="number" step="0.1" name="temperature" value={formData.temperature} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" placeholder="Masalan: 24.5"/>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Hudud</label>
-                  <select name="location" value={formData.location} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm">
-                    <option value="Ombor A">Ombor A</option><option value="Ombor B">Ombor B</option><option value="Zavod">Zavod</option>
-                  </select>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Namlik (%)</label>
+                  <input type="number" step="0.1" name="humidity" value={formData.humidity} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm" placeholder="Masalan: 45"/>
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Aloqa Holati</label>
+                <select name="connection" value={formData.connection} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all text-sm">
+                  <option value="Online">Online</option>
+                  <option value="Offline">Offline</option>
+                </select>
+              </div>
               <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 border border-slate-200 text-slate-700 rounded-lg font-medium">Bekor qilish</button>
-                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium flex items-center justify-center gap-2"><CheckCircle2 className="w-4 h-4" /> Ulush</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 px-4 py-2 border border-slate-200 text-slate-700 rounded-lg font-medium text-sm">Bekor qilish</button>
+                <button type="submit" className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium flex items-center justify-center gap-2 text-sm"><CheckCircle2 className="w-4 h-4" /> Qo'shish</button>
               </div>
             </form>
           </div>
