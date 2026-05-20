@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Radio, Thermometer, Droplets, RefreshCcw, Plus, X, CheckCircle2, Calendar } from 'lucide-react';
+import { Radio, Thermometer, Droplets, RefreshCcw, Plus, X, CheckCircle2, Calendar, Activity } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 // Chart.js modullari
@@ -51,8 +51,48 @@ export const Sensors = () => {
     connection: 'Online'
   });
 
+  // ─── REALTIME OBUNA VA MA'LUMOTLARNI YUKLASH ───
   useEffect(() => {
+    // 1. Dastlabki ma'lumotlarni bazadan o'qish
     fetchData();
+
+    // 2. Supabase Realtime kanalini sozlash
+    const channel = supabase
+      .channel('realtime-sensors')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE va hamma o'zgarishlarni eshitadi
+          schema: 'public',
+          table: 'sensors',
+        },
+        (payload) => {
+          console.log("Bazada o'zgarish bo'ldi:", payload);
+          
+          if (payload.eventType === 'INSERT') {
+            // Yangi qator qo'shilsa, uni state'ning eng tepasiga qo'shamiz
+            setSensors((prevSensors) => [payload.new, ...prevSensors]);
+          } else if (payload.eventType === 'UPDATE') {
+            // Agar mavjud datchik qiymati yangilansa (Upsert bo'lsa)
+            setSensors((prevSensors) =>
+              prevSensors.map((sensor) =>
+                sensor.snr_id === payload.new.snr_id ? payload.new : sensor
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            // Ma'lumot o'chirilganda
+            setSensors((prevSensors) =>
+              prevSensors.filter((sensor) => sensor.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    // Komponent ekrandan yo'qolganda obunani o'chirish (Memory leak bo'lmasligi uchun)
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchData = async () => {
@@ -93,7 +133,6 @@ export const Sensors = () => {
       
       setIsModalOpen(false);
       setFormData({ name: '', snr_id: '', temperature: '', humidity: '', connection: 'Online' });
-      fetchData();
     } catch (err) {
       console.error(err);
       alert("Xatolik yuz berdi: " + err.message);
@@ -113,17 +152,27 @@ export const Sensors = () => {
   const labels = orderedSensors.map(s => s.name ? s.name.split(' (')[0] : 'Datchik');
   const fullNames = orderedSensors.map(s => s.name || "Noma'lum Datchik");
   
-  // Sana va vaqt formatlash
-  const timestamps = orderedSensors.map(s => {
-    if (!s.created_at) return '';
-    const d = new Date(s.created_at);
+  // Sana va vaqt formatlash funksiyasi
+  const formatDateTime = (dateString) => {
+    if (!dateString) return '';
+    const d = new Date(dateString);
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
     const hours = String(d.getHours()).padStart(2, '0');
     const minutes = String(d.getMinutes()).padStart(2, '0');
     return `${day}.${month}.${year} ${hours}:${minutes}`;
-  });
+  };
+
+  const timestamps = orderedSensors.map(s => formatDateTime(s.created_at));
+
+  // ─── JORIY ENGLI OXIRGI MA'LUMOTLARNI ANIQLASH (KARTALAR UCHUN) ───
+  // sensors massivining 0-elementi har doim eng oxirgi kelgan ma'lumot bo'ladi (order: created_at desc bo'lgani uchun)
+  const latestSensor = sensors[0] || null;
+  const currentTemp = latestSensor && latestSensor.temperature !== null ? latestSensor.temperature.toFixed(1) : '--';
+  const currentHum = latestSensor && latestSensor.humidity !== null ? latestSensor.humidity.toFixed(1) : '--';
+  const latestSensorName = latestSensor ? latestSensor.name : 'Datchik ulanmagan';
+  const latestSensorTime = latestSensor ? formatDateTime(latestSensor.created_at) : '';
 
   // Custom HTML Tooltip Generator funksiyasi
   const customTooltipHandler = (chartType, context) => {
@@ -144,7 +193,7 @@ export const Sensors = () => {
     setTooltipState({
       opacity: 1,
       left: chartPosition.left + window.scrollX + tooltip.caretX,
-      top: chartPosition.top + window.scrollY + tooltip.caretY - 10, // Kursordan biroz yuqorida turishi uchun
+      top: chartPosition.top + window.scrollY + tooltip.caretY - 10,
       title: fullNames[dataIndex],
       value: Number(tooltip.dataPoints[0].raw).toFixed(1),
       date: timestamps[dataIndex],
@@ -159,8 +208,8 @@ export const Sensors = () => {
     plugins: {
       legend: { display: false },
       tooltip: {
-        enabled: false, // Chart.js'ning o'z qora tooltipini o'chiramiz
-        external: (context) => customTooltipHandler(chartType, context), // Bizning custom funksiyani ulaymiz
+        enabled: false,
+        external: (context) => customTooltipHandler(chartType, context),
       }
     },
     scales: {
@@ -188,8 +237,10 @@ export const Sensors = () => {
         data: orderedSensors.map(s => s.temperature ?? 0),
         borderColor: '#f97316',
         backgroundColor: (context) => {
-          const ctx = context.chart.ctx;
-          const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+          const chart = context.chart;
+          const { ctx, chartArea } = chart;
+          if (!chartArea) return null;
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
           gradient.addColorStop(0, 'rgba(249, 115, 22, 0.2)');
           gradient.addColorStop(1, 'rgba(249, 115, 22, 0.01)');
           return gradient;
@@ -214,8 +265,10 @@ export const Sensors = () => {
         data: orderedSensors.map(s => s.humidity ?? 0),
         borderColor: '#3b82f6',
         backgroundColor: (context) => {
-          const ctx = context.chart.ctx;
-          const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+          const chart = context.chart;
+          const { ctx, chartArea } = chart;
+          if (!chartArea) return null;
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
           gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
           gradient.addColorStop(1, 'rgba(59, 130, 246, 0.01)');
           return gradient;
@@ -234,17 +287,16 @@ export const Sensors = () => {
   return (
     <div className="space-y-6 relative w-full overflow-hidden">
       
-      {/* ─── REAL REACT PORTAL TOOLTIP (LUCIDE ICONS BILAN) ─── */}
+      {/* ─── REAL REACT PORTAL TOOLTIP ─── */}
       <div
         className="fixed z-50 bg-slate-900 text-white p-3 rounded-xl border border-slate-800 shadow-2xl pointer-events-none transition-opacity duration-150 space-y-2 min-w-[180px]"
         style={{
           opacity: tooltipState.opacity,
           top: tooltipState.top,
           left: tooltipState.left,
-          transform: 'translate(-50%, -100%)', // Tooltip nuqta ustida markazlashishi uchun
+          transform: 'translate(-50%, -100%)',
         }}
       >
-        {/* Sarlavha: Datchik Nomi */}
         <div className="flex items-center gap-1.5 border-b border-slate-800 pb-1.5">
           <Radio className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
           <span className="font-bold text-slate-200 text-xs truncate max-w-[150px]">
@@ -252,7 +304,6 @@ export const Sensors = () => {
           </span>
         </div>
 
-        {/* Qiymat va Lucide Ikonkasi */}
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-1.5 text-xs text-slate-400">
             {tooltipState.type === 'Harorat' ? (
@@ -267,14 +318,13 @@ export const Sensors = () => {
           </span>
         </div>
 
-        {/* Sana va Vaqt */}
         <div className="flex items-center gap-1.5 text-[10px] text-slate-400 border-t border-slate-800/60 pt-1.5">
           <Calendar className="w-3 h-3 text-slate-500" />
           <span className="font-medium tracking-wide">{tooltipState.date}</span>
         </div>
       </div>
-      {/* ────────────────────────────────────────────────────── */}
 
+      {/* Header Secion */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">IoT Sensorlar</h1>
@@ -290,10 +340,66 @@ export const Sensors = () => {
         </div>
       </div>
 
+      {/* ─── REAL VAQTDA O'ZGARUVCHAN JORIY KARTALAR PANELİ ─── */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
+        {/* Joriy Harorat Kartasi */}
+        <div className="bg-gradient-to-br from-orange-50 to-white p-6 rounded-2xl border border-orange-100 shadow-sm flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-all">
+          <div className="space-y-2 min-w-0">
+            <span className="text-xs font-bold text-orange-600 uppercase tracking-wider flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 animate-pulse" /> Real-time Harorat
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-4xl font-black text-slate-800 tracking-tight transition-all duration-300">
+                {currentTemp}
+              </span>
+              <span className="text-xl font-bold text-slate-500">°C</span>
+            </div>
+            <p className="text-xs text-slate-400 truncate max-w-[200px] md:max-w-[250px]">
+              Datchik: <span className="font-semibold text-slate-600">{latestSensorName}</span>
+            </p>
+          </div>
+          <div className="p-4 bg-orange-500/10 rounded-xl text-orange-600 group-hover:scale-110 transition-transform">
+            <Thermometer className="w-8 h-8" />
+          </div>
+          {latestSensor && (
+            <div className="absolute top-3 right-3 flex items-center gap-1 bg-white/80 backdrop-blur-sm border border-orange-100 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+              <span className="text-[9px] text-slate-500 font-medium">{latestSensorTime.split(' ')[1]}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Joriy Namlik Kartasi */}
+        <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-2xl border border-blue-100 shadow-sm flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-all">
+          <div className="space-y-2 min-w-0">
+            <span className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5">
+              <Activity className="w-3.5 h-3.5 animate-pulse" /> Real-time Namlik
+            </span>
+            <div className="flex items-baseline gap-1">
+              <span className="text-4xl font-black text-slate-800 tracking-tight transition-all duration-300">
+                {currentHum}
+              </span>
+              <span className="text-xl font-bold text-slate-500">%</span>
+            </div>
+            <p className="text-xs text-slate-400 truncate max-w-[200px] md:max-w-[250px]">
+              Datchik: <span className="font-semibold text-slate-600">{latestSensorName}</span>
+            </p>
+          </div>
+          <div className="p-4 bg-blue-500/10 rounded-xl text-blue-600 group-hover:scale-110 transition-transform">
+            <Droplets className="w-8 h-8" />
+          </div>
+          {latestSensor && (
+            <div className="absolute top-3 right-3 flex items-center gap-1 bg-white/80 backdrop-blur-sm border border-blue-100 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+              <span className="text-[9px] text-slate-500 font-medium">{latestSensorTime.split(' ')[1]}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Visual Charts Panel */}
       {sensors.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 w-full">
-          
           {/* Temperature Chart */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm w-full min-w-0">
             <div className="mb-4">
@@ -321,7 +427,6 @@ export const Sensors = () => {
               <Line data={humidityData} options={createChartOptions('Namlik')} />
             </div>
           </div>
-
         </div>
       )}
 

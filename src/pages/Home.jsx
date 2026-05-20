@@ -4,6 +4,35 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { Loader } from '../components/Loader';
 
+// Chart.js modullarini import qilish va ro'yxatdan o'tkazish
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
+import { Line, Doughnut } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
+
 export const Home = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState({
@@ -111,9 +140,11 @@ export const Home = () => {
       setCategoryDistribution(catList);
 
       // Fetch sales for last 7 days
-      const { data: weekSales } = await supabase
-        .from('sales')
-        .select('date, amount');
+      let salesTrendQuery = supabase.from('sales').select('date, amount');
+      if (user?.role === 'Sotuvchi') {
+        salesTrendQuery = salesTrendQuery.eq('employee_id', user.id);
+      }
+      const { data: weekSales } = await salesTrendQuery;
       
       const last7Days = Array.from({ length: 7 }, (_, i) => {
         const d = new Date();
@@ -156,11 +187,120 @@ export const Home = () => {
     );
   }, [recentInventory, invSearch]);
 
+  // ─── CHART.JS SOZLAMALARI VA DATA STRUKTURALARI ───
+  
+  // 1. Sotuvlar dinamikasi (Chiziqli Grafik) Sozlamalari
+  const salesChartData = {
+    labels: salesByDay.map(d => d.dateStr),
+    datasets: [
+      {
+        fill: true,
+        label: "Sotuv hajmi (so'm)",
+        data: salesByDay.map(d => d.amount),
+        borderColor: '#2563eb', // blue-600
+        backgroundColor: (context) => {
+          const chart = context.chart;
+          const { ctx, chartArea } = chart;
+          if (!chartArea) return null;
+          const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+          gradient.addColorStop(0, 'rgba(37, 99, 235, 0.2)');
+          gradient.addColorStop(1, 'rgba(37, 99, 235, 0.01)');
+          return gradient;
+        },
+        tension: 0.35,
+        pointRadius: 3,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#2563eb',
+        pointHoverBackgroundColor: '#1d4ed8',
+      }
+    ]
+  };
+
+  const salesChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        padding: 10,
+        backgroundColor: '#0f172a',
+        titleFont: { size: 12, weight: 'bold' },
+        bodyFont: { size: 12 },
+        callbacks: {
+          label: (context) => ` ${context.raw.toLocaleString()} so'm`
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { color: '#94a3b8', font: { size: 11, weight: '600' } }
+      },
+      y: {
+        grid: { color: '#f1f5f9' },
+        ticks: {
+          color: '#94a3b8',
+          font: { size: 11, weight: '600' },
+          callback: (value) => value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : value.toLocaleString()
+        }
+      }
+    }
+  };
+
+  // 2. Kategoriya taqsimoti (Doughnut) Sozlamalari
+  const topCategories = categoryDistribution.slice(0, 5);
+  const doughnutChartData = {
+    labels: topCategories.map(c => c.category),
+    datasets: [
+      {
+        data: topCategories.map(c => c.value),
+        backgroundColor: [
+          '#6366f1', // indigo-500
+          '#10b981', // emerald-500
+          '#f59e0b', // amber-500
+          '#8b5cf6', // purple-500
+          '#ec4899', // pink-500
+        ],
+        borderWidth: 2,
+        borderColor: '#ffffff',
+        hoverOffset: 6
+      }
+    ]
+  };
+
+  const doughnutChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: {
+          boxWidth: 12,
+          padding: 15,
+          color: '#334155',
+          font: { size: 12, weight: '600' }
+        }
+      },
+      tooltip: {
+        padding: 10,
+        backgroundColor: '#0f172a',
+        callbacks: {
+          label: (context) => {
+            const value = context.raw;
+            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+            return ` Qoldiq: ${value.toLocaleString()} kg/dona (${percentage}%)`;
+          }
+        }
+      }
+    },
+    cutout: '70%'
+  };
+
   if (loading) {
     return <Loader variant="block" text="Statistika yuklanmoqda..." />;
   }
 
-  // Common styles for sections
   const renderRecentSalesPanel = () => (
     <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm flex flex-col h-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -262,9 +402,23 @@ export const Home = () => {
           </div>
         </div>
 
-        {/* Sotuvchi uchun o'zining so'nggi savdo tranzaksiyalari */}
-        <div className="grid grid-cols-1 gap-6">
-          {renderRecentSalesPanel()}
+        {/* Sotuvchining o'z dinamikasi (Grafik) va so'nggi savdolari */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            {renderRecentSalesPanel()}
+          </div>
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between h-full">
+            <div className="mb-2">
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-blue-600" />
+                Sizning Sotuv Dinamikangiz
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">Oxirgi 7 kunlik shaxsiy savdo grafigingiz</p>
+            </div>
+            <div className="h-[260px] w-full pt-4">
+              <Line data={salesChartData} options={salesChartOptions} />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -416,84 +570,36 @@ export const Home = () => {
         </div>
       </div>
 
-      {/* Analitika va Interaktiv Diagrammalar */}
+      {/* Analitika va Interaktiv Diagrammalar Panelı */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sales Dynamics Chart */}
+        {/* Sales Dynamics Chart (Chiziqli) */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
-          <div className="mb-4">
+          <div className="mb-2">
             <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-blue-600" />
               Sotuvlar Dinamikasi (So'nggi 7 kun)
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">Kunlik tranzaksiyalar hajmi va dinamik tahlili</p>
           </div>
-          
-          <div className="flex items-end justify-between gap-4 h-48 pt-6 border-b border-slate-100 pb-2">
-            {salesByDay.map((day, idx) => {
-              const maxAmount = Math.max(...salesByDay.map(d => d.amount), 100000);
-              const heightPercent = maxAmount > 0 ? (day.amount / maxAmount) * 100 : 0;
-              return (
-                <div key={idx} className="flex-1 flex flex-col items-center gap-2 group relative">
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full mb-2 bg-slate-900 text-white text-[10px] font-bold py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap shadow-md z-10">
-                    {day.amount.toLocaleString()} so'm
-                  </div>
-                  
-                  {/* Column Bar */}
-                  <div className="w-full bg-slate-50 hover:bg-slate-100 rounded-t-lg flex items-end h-full overflow-hidden transition-all duration-300">
-                    <div 
-                      className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-lg group-hover:from-blue-700 group-hover:to-blue-500 transition-all duration-500 ease-out"
-                      style={{ height: `${Math.max(heightPercent, 4)}%` }}
-                    />
-                  </div>
-                  
-                  {/* X Axis Label */}
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">{day.dateStr}</span>
-                </div>
-              );
-            })}
+          <div className="h-[240px] w-full pt-4">
+            <Line data={salesChartData} options={salesChartOptions} />
           </div>
         </div>
 
-        {/* Categories Distribution */}
+        {/* Categories Distribution (Doughnut - Aylanma) */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between">
-          <div className="mb-6">
+          <div className="mb-2">
             <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
               <Package className="w-5 h-5 text-emerald-600" />
               Kategoriyalar bo'yicha Tovar Taqsimoti
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">Ombordagi tovarlar ulushining kategoriya bo'yicha foizlarda taqsimoti</p>
+            <p className="text-xs text-slate-500 mt-0.5">Ombordagi top 5 kategoriyadagi tovarlar ulushining taqsimoti</p>
           </div>
-          
-          <div className="space-y-4 flex-1 flex flex-col justify-center">
+          <div className="h-[240px] w-full pt-4 flex items-center justify-center">
             {categoryDistribution.length === 0 ? (
               <div className="text-center py-10 text-slate-400 text-xs">Kategoriyalar topilmadi</div>
             ) : (
-              categoryDistribution.slice(0, 4).map((cat, idx) => {
-                const totalStock = categoryDistribution.reduce((acc, c) => acc + c.value, 0);
-                const percentage = totalStock > 0 ? (cat.value / totalStock) * 100 : 0;
-                const colors = [
-                  { bg: 'bg-indigo-500' },
-                  { bg: 'bg-emerald-500' },
-                  { bg: 'bg-amber-500' },
-                  { bg: 'bg-purple-500' }
-                ];
-                const color = colors[idx % colors.length];
-                return (
-                  <div key={idx} className="space-y-1.5 group">
-                    <div className="flex justify-between text-xs font-bold">
-                      <span className="text-slate-700 group-hover:text-slate-900 transition-colors">{cat.category}</span>
-                      <span className="text-slate-500">{cat.value.toLocaleString()} kg/dona ({percentage.toFixed(1)}%)</span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                      <div 
-                        className={`h-2.5 rounded-full ${color.bg} transition-all duration-700 ease-out`} 
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })
+              <Doughnut data={doughnutChartData} options={doughnutChartOptions} />
             )}
           </div>
         </div>
