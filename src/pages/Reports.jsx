@@ -439,7 +439,7 @@ export const Reports = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{rep.type}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset \${rep.format === 'PDF' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'}`}>{rep.format}</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${rep.format === 'PDF' ? 'bg-red-50 text-red-700 ring-red-600/20' : 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'}`}>{rep.format}</span>
                         <span className="text-xs text-slate-400 font-medium">{rep.size}</span>
                       </div>
                     </td>
@@ -484,16 +484,16 @@ export const Reports = () => {
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-3">Qaysi formatda saqlansin?</label>
                 <div className="grid grid-cols-2 gap-4">
-                  <label className={`cursor-pointer border-2 rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all \${formData.format === 'PDF Hujjat' ? 'border-red-500 bg-red-50' : 'border-slate-200 hover:border-red-200 hover:bg-slate-50'}`}>
+                  <label className={`cursor-pointer border-2 rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${formData.format === 'PDF Hujjat' ? 'border-red-500 bg-red-50' : 'border-slate-200 hover:border-red-200 hover:bg-slate-50'}`}>
                     <input type="radio" name="format" value="PDF Hujjat" checked={formData.format === 'PDF Hujjat'} onChange={handleChange} className="sr-only" />
-                    <FileDown className={`w-8 h-8 \${formData.format === 'PDF Hujjat' ? 'text-red-600' : 'text-slate-400'}`} />
-                    <span className={`text-sm font-bold \${formData.format === 'PDF Hujjat' ? 'text-red-700' : 'text-slate-600'}`}>PDF Hujjat</span>
+                    <FileDown className={`w-8 h-8 ${formData.format === 'PDF Hujjat' ? 'text-red-600' : 'text-slate-400'}`} />
+                    <span className={`text-sm font-bold ${formData.format === 'PDF Hujjat' ? 'text-red-700' : 'text-slate-600'}`}>PDF Hujjat</span>
                   </label>
                   
-                  <label className={`cursor-pointer border-2 rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all \${formData.format === 'Excel Jadval' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-emerald-200 hover:bg-slate-50'}`}>
+                  <label className={`cursor-pointer border-2 rounded-xl p-4 flex flex-col items-center justify-center gap-2 transition-all ${formData.format === 'Excel Jadval' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-emerald-200 hover:bg-slate-50'}`}>
                     <input type="radio" name="format" value="Excel Jadval" checked={formData.format === 'Excel Jadval'} onChange={handleChange} className="sr-only" />
-                    <Table className={`w-8 h-8 \${formData.format === 'Excel Jadval' ? 'text-emerald-600' : 'text-slate-400'}`} />
-                    <span className={`text-sm font-bold \${formData.format === 'Excel Jadval' ? 'text-emerald-700' : 'text-slate-600'}`}>Excel Jadval</span>
+                    <Table className={`w-8 h-8 ${formData.format === 'Excel Jadval' ? 'text-emerald-600' : 'text-slate-400'}`} />
+                    <span className={`text-sm font-bold ${formData.format === 'Excel Jadval' ? 'text-emerald-700' : 'text-slate-600'}`}>Excel Jadval</span>
                   </label>
                 </div>
               </div>
