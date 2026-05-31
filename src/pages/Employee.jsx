@@ -298,11 +298,11 @@ export const Employee = () => {
               <div className="px-6 py-4 border-t border-slate-100 bg-emerald-50/30">
                 <div className="flex justify-between text-xs text-slate-500 mb-1">
                   <span>Asosiy Maosh: {emp.base_salary} so'm</span>
-                  <span className="text-emerald-600 font-semibold">+ {emp.commission} (Bonus)</span>
+                  <span className="text-emerald-600 font-semibold">+ {(emp.commission || 0).toLocaleString()} (Bonus)</span>
                 </div>
                 <div className="flex justify-between items-center text-sm font-bold">
                   <span className="text-slate-700">Jami Maosh:</span>
-                  <span className="text-lg text-emerald-600">{emp.total_salary.toLocaleString()} so'm</span>
+                  <span className="text-lg text-emerald-600">{(emp.total_salary || 0).toLocaleString()} so'm</span>
                 </div>
               </div>
             </div>
@@ -382,7 +382,7 @@ export const Employee = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Parol (Kirish uchun)</label>
-                  <input required type="text" name="password" value={formData.password} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Yangi parol..."/>
+                  <input required type="password" name="password" value={formData.password} onChange={handleChange} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Yangi parol..."/>
                 </div>
               </div>
 
