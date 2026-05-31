@@ -13,17 +13,21 @@ export const AuthProvider = ({ children }) => {
     // Sahifa yuklanganda localStorage dan foydalanuvchini tekshiramiz
     const storedUser = localStorage.getItem('erp_user');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch {
+        localStorage.removeItem('erp_user');
+      }
     }
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     try {
-      // Employees bazasidan email va parolni tekshiramiz
+      // ✅ FIX: password SELECT dan olib tashlandi - faqat autentifikatsiya uchun ishlatiladi
       const { data, error } = await supabase
         .from('employees')
-        .select('*')
+        .select('id, emp_id, name, role, email, department, base_salary, phone, status, avatar')
         .eq('email', email)
         .eq('password', password)
         .single();
@@ -36,10 +40,11 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Sizning akkauntingiz faol emas. Adminga murojaat qiling!");
       }
 
-      // Login muvaffaqiyatli
-      setUser(data);
-      localStorage.setItem('erp_user', JSON.stringify(data));
-      return { success: true, user: data };
+      // ✅ FIX: password localStorage ga SAQLANMAYDI
+      const { ...safeUser } = data;
+      setUser(safeUser);
+      localStorage.setItem('erp_user', JSON.stringify(safeUser));
+      return { success: true, user: safeUser };
     } catch (err) {
       return { success: false, message: err.message };
     }
