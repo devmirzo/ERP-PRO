@@ -132,7 +132,7 @@ export const Sales = () => {
 
   const filteredSales = useMemo(() => {
     return sales.filter(sale => 
-      sale.invoice_id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      (sale.invoice_id || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
       (sale.clients?.company_name || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [sales, searchTerm]);
@@ -140,7 +140,7 @@ export const Sales = () => {
   // Hisoblangan Statistikalar
   const metrics = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
-    const todaySales = sales.filter(s => s.date.startsWith(today));
+    const todaySales = sales.filter(s => s.date && s.date.startsWith(today));
     
     const todayRevenue = todaySales.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
     const totalRevenue = sales.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
@@ -240,7 +240,7 @@ export const Sales = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{sale.payment_method}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{sale.employees?.name || 'Noma\'lum'}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-bold text-emerald-600 mb-1">{sale.amount.toLocaleString()} so'm</div>
+                      <div className="text-sm font-bold text-emerald-600 mb-1">{(sale.amount || 0).toLocaleString()} so'm</div>
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${getStatusColor(sale.status)}`}>
                         {sale.status}
                       </span>
